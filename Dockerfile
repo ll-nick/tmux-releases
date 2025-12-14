@@ -1,6 +1,9 @@
 FROM debian:bookworm-slim AS base
 
+ARG PREFIX=/build
+
 ENV DEBIAN_FRONTEND=noninteractive
+ENV PREFIX=${PREFIX}
 
 RUN apt-get update && \
     apt-get install -y \
@@ -11,8 +14,8 @@ RUN apt-get update && \
         wget && \
     rm -rf /var/lib/apt/lists/*
 
-RUN mkdir -p /build/{bin, include, lib, src}
-WORKDIR /build/src
+RUN mkdir -p ${PREFIX}/{bin, include, lib, src}
+WORKDIR ${PREFIX}/src
 
 
 ########
@@ -28,13 +31,11 @@ RUN wget https://musl.libc.org/releases/musl-${MUSL_VERSION}.tar.gz && \
     ./configure \
         --enable-gcc-wrapper \
         --disable-shared \
-        --prefix=/build \
-        --bindir=/build/bin \
-        --includedir=/build/include && \
+        --prefix=${PREFIX} && \
     make -j$(nproc) && \
     make install
 
-ENV CC="/build/bin/musl-gcc -static"
+ENV CC="${PREFIX}/bin/musl-gcc -static"
 
 
 ############
@@ -48,9 +49,7 @@ RUN wget https://github.com/libevent/libevent/releases/download/release-${LIBEVE
     tar xf libevent-${LIBEVENT_VERSION}-stable.tar.gz && \
     cd libevent-${LIBEVENT_VERSION}-stable && \
     ./configure \
-        --prefix=/build \
-        --includedir=/build/include \
-        --libdir=/build/lib \
+        --prefix=${PREFIX} \
         --disable-shared \
         --disable-openssl \
         --disable-libevent-regress \
@@ -70,20 +69,15 @@ RUN wget https://invisible-island.net/archives/ncurses/ncurses-${NCURSES_VERSION
     tar xzf ncurses-${NCURSES_VERSION}.tar.gz && \
     cd ncurses-${NCURSES_VERSION} && \
     ./configure \
-        --prefix=/build \
-        --includedir=/build/include \
-        --libdir=/build/lib \
+        --prefix=${PREFIX} \
         --enable-pc-files \
-        --with-pkg-config=/build/lib/pkgconfig \
-        --with-pkg-config-libdir=/build/lib/pkgconfig \
+        --with-pkg-config-libdir=${PREFIX}/lib/pkgconfig \
         --without-ada \
         --without-cxx \
         --without-cxx-binding \
         --without-tests \
         --without-manpages \
         --without-debug \
-        --disable-lib-suffixes \
-        --with-ticlib \
         --with-termlib \
         --with-default-terminfo-dir=/usr/share/terminfo \
         --with-terminfo-dirs=/etc/terminfo:/lib/terminfo:/usr/share/terminfo && \
@@ -103,19 +97,10 @@ RUN test -n "${TMUX_VERSION}"
 RUN wget https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz && \
     tar xzf tmux-${TMUX_VERSION}.tar.gz && \
     cd tmux-${TMUX_VERSION} && \
+    PKG_CONFIG_PATH=${PREFIX}/lib/pkgconfig \
     ./configure \
-        --prefix=/build \
-        --enable-static \
-        --includedir="/build/include" \
-        --libdir="/build/lib" \
-        CFLAGS="-I/build/include" \
-        LDFLAGS="-L/build/lib" \
-        CPPFLAGS="-I/build/include" \
-        LIBEVENT_LIBS="-L/build/lib -levent" \
-        LIBNCURSES_CFLAGS="-I/build/include/ncurses" \
-        LIBNCURSES_LIBS="-L/build/lib -lncurses" \
-        LIBTINFO_CFLAGS="-I/build/include/ncurses" \
-        LIBTINFO_LIBS="-L/build/lib -ltinfo" && \
+        --prefix=${PREFIX} \
+        --enable-static && \
     make -j$(nproc) && \
     make install
 
@@ -125,7 +110,8 @@ RUN wget https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${T
 ##################
 
 FROM alpine:latest
-COPY --from=tmux-builder /build/bin/tmux /artifacts/tmux
+ARG PREFIX=/build
+COPY --from=tmux-builder ${PREFIX}/bin/tmux /artifacts/tmux
 ENTRYPOINT ["/artifacts/tmux"]
 CMD ["-V"]
 
