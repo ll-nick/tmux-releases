@@ -17,10 +17,19 @@ wget "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX
 tar xzf "tmux-${TMUX_VERSION}.tar.gz"
 cd "tmux-${TMUX_VERSION}"
 
-PKG_CONFIG_PATH="$PREFIX/lib/pkgconfig" \
-    ./configure \
-    --prefix="$PREFIX" \
-    --enable-static
+./configure \
+    --prefix=${PREFIX} \
+    --enable-static \
+    --includedir="${PREFIX}/include" \
+    --libdir="${PREFIX}/lib" \
+    CFLAGS="-I${PREFIX}/include" \
+    LDFLAGS="-L${PREFIX}/lib" \
+    CPPFLAGS="-I${PREFIX}/include" \
+    LIBEVENT_LIBS="-L${PREFIX}/lib -levent" \
+    LIBNCURSES_CFLAGS="-I${PREFIX}/include/ncurses" \
+    LIBNCURSES_LIBS="-L${PREFIX}/lib -lncurses" \
+    LIBTINFO_CFLAGS="-I${PREFIX}/include/ncurses" \
+    LIBTINFO_LIBS="-L${PREFIX}/lib -ltinfo"
 
 make -j$(nproc)
 make install

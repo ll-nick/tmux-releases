@@ -2,10 +2,10 @@ FROM debian:bookworm-slim AS builder
 
 ARG TMUX_VERSION
 
-ARG MUSL_VERSION=1.2.5
-ARG LIBEVENT_VERSION=2.1.12
-ARG NCURSES_VERSION=6.5
-ARG PREFIX=/build
+ARG MUSL_VERSION
+ARG LIBEVENT_VERSION
+ARG NCURSES_VERSION
+ARG PREFIX
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PREFIX=${PREFIX}
@@ -21,16 +21,16 @@ RUN apt-get update && \
 
 COPY scripts /scripts
 
-RUN /scripts/01-build-musl.sh
+RUN /scripts/build_musl.sh
 
 ENV CC="${PREFIX}/bin/musl-gcc -static"
 
-RUN /scripts/02-build-libevent.sh
-RUN /scripts/03-build-ncurses.sh
-RUN /scripts/04-build-tmux.sh
+RUN /scripts/build_libevent.sh
+RUN /scripts/build_ncurses.sh
+RUN /scripts/build_tmux.sh
 
-FROM alpine:latest AS exporter
-ARG PREFIX=/build
+FROM debian:bookworm-slim AS exporter
+ARG PREFIX
 
 COPY --from=builder ${PREFIX}/bin/tmux /artifacts/tmux
 

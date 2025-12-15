@@ -1,0 +1,12 @@
+services:
+  tmux-release-builder:
+    image: tmux-release-builder
+    container_name: tmux-release-builder
+    build:
+      context: .
+      args:
+        - TMUX_VERSION=${TMUX_VERSION}
+        - MUSL_VERSION=${MUSL_VERSION}
+        - LIBEVENT_VERSION=${LIBEVENT_VERSION}
+        - NCURSES_VERSION=${NCURSES_VERSION}
+        - PREFIX=/build
