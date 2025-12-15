@@ -19,6 +19,8 @@ cd "libevent-${LIBEVENT_VERSION}-stable"
 
 ./configure \
     --prefix="$PREFIX" \
+    --includedir=${PREFIX}/include \
+    --libdir=${PREFIX}/lib \
     --disable-shared \
     --disable-openssl \
     --disable-libevent-regress \
