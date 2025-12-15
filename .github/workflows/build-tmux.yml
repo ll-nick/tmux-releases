@@ -44,16 +44,21 @@ jobs:
       - name: Build musl
         run: |
           ./scripts/build_musl.sh
-          echo "CC=${PREFIX}/bin/musl-gcc -static" >> "$GITHUB_ENV"
 
       - name: Build libevent
-        run: ./scripts/build_libevent.sh
+        run: |
+          export CC="${{ env.PREFIX }}/bin/musl-gcc -static"
+          ./scripts/build_libevent.sh
 
       - name: Build ncurses
-        run: ./scripts/build_ncurses.sh
+        run: |
+          export CC="${{ env.PREFIX }}/bin/musl-gcc -static"
+          ./scripts/build_ncurses.sh
 
       - name: Build tmux
-        run: ./scripts/build_tmux.sh
+        run: |
+          export CC="${{ env.PREFIX }}/bin/musl-gcc -static"
+          ./scripts/build_tmux.sh
 
       - name: Verify tmux binary
         run: |
