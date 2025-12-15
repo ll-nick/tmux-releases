@@ -2,14 +2,10 @@ name: Build tmux
 
 on:
   push:
-  # TODO: Once working, dispatch workflow on tag creation
+    tags:
+      - 'v*'
 
 env:
-  # TODO: Define these in a separate file
-  TMUX_VERSION: "3.6a"
-  MUSL_VERSION: "1.2.5"
-  LIBEVENT_VERSION: "2.1.12"
-  NCURSES_VERSION: "6.5"
   PREFIX: /tmp/build
 
 jobs:
@@ -41,6 +37,15 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
+      - name: Load version file
+        run: |
+          echo "Loading versions from versions.env"
+          source versions.env
+          echo "TMUX_VERSION=$TMUX_VERSION" >> "$GITHUB_ENV"
+          echo "MUSL_VERSION=$MUSL_VERSION" >> "$GITHUB_ENV"
+          echo "LIBEVENT_VERSION=$LIBEVENT_VERSION" >> "$GITHUB_ENV"
+          echo "NCURSES_VERSION=$NCURSES_VERSION" >> "$GITHUB_ENV"
+
       - name: Build musl
         run: |
           ./scripts/build_musl.sh
@@ -57,10 +62,16 @@ jobs:
 
       - name: Verify tmux binary
         run: |
+          echo "Checking tmux binary"
           file ${{ env.PREFIX }}/bin/tmux
-          ldd ${{ env.PREFIX }}/bin/tmux || true
+
+          echo "Creating a new tmux session"
           ${{ env.PREFIX }}/bin/tmux new-session -d -s test
+
+          echo "Listing tmux sessions"
           ${{ env.PREFIX }}/bin/tmux ls
+
+          echo "Killing test tmux session"
           ${{ env.PREFIX }}/bin/tmux kill-session -t test
 
       - name: Upload artifact
