@@ -2,10 +2,10 @@ FROM debian:bookworm-slim AS builder
 
 ARG TMUX_VERSION
 
-ARG MUSL_VERSION=1.2.5
-ARG LIBEVENT_VERSION=2.1.12
-ARG NCURSES_VERSION=6.5
-ARG PREFIX=/build
+ARG MUSL_VERSION
+ARG LIBEVENT_VERSION
+ARG NCURSES_VERSION
+ARG PREFIX
 
 ENV DEBIAN_FRONTEND=noninteractive
 ENV PREFIX=${PREFIX}
@@ -30,7 +30,7 @@ RUN /scripts/build_ncurses.sh
 RUN /scripts/build_tmux.sh
 
 FROM debian:bookworm-slim AS exporter
-ARG PREFIX=/build
+ARG PREFIX
 
 COPY --from=builder ${PREFIX}/bin/tmux /artifacts/tmux
 
