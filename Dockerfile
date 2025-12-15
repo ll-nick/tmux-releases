@@ -21,13 +21,13 @@ RUN apt-get update && \
 
 COPY scripts /scripts
 
-RUN /scripts/01_build_musl.sh
+RUN /scripts/build_musl.sh
 
 ENV CC="${PREFIX}/bin/musl-gcc -static"
 
-RUN /scripts/02_build_libevent.sh
-RUN /scripts/03_build_ncurses.sh
-RUN /scripts/04_build_tmux.sh
+RUN /scripts/build_libevent.sh
+RUN /scripts/build_ncurses.sh
+RUN /scripts/build_tmux.sh
 
 FROM alpine:latest AS exporter
 ARG PREFIX=/build
