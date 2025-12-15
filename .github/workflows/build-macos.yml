@@ -35,12 +35,16 @@ jobs:
           echo "TMUX_VERSION=$TMUX_VERSION" >> "$GITHUB_ENV"
           echo "LIBEVENT_VERSION=$LIBEVENT_VERSION" >> "$GITHUB_ENV"
           echo "NCURSES_VERSION=$NCURSES_VERSION" >> "$GITHUB_ENV"
+          echo "UTF8PROC_VERSION=$UTF8PROC_VERSION" >> "$GITHUB_ENV"
 
       - name: Build libevent
         run: ./scripts/build_libevent.sh
 
       - name: Build ncurses
         run: ./scripts/build_ncurses.sh
+
+      - name: Build utf8proc
+        run: ./scripts/build_utf8proc.sh
 
       - name: Build tmux
         run: ./scripts/build_tmux.sh
