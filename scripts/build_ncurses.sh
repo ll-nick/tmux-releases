@@ -21,9 +21,6 @@ cd "ncurses-${NCURSES_VERSION}"
     --prefix=${PREFIX} \
     --includedir=${PREFIX}/include \
     --libdir=${PREFIX}/lib \
-    --enable-pc-files \
-    --with-pkg-config=${PREFIX}/lib/pkgconfig \
-    --with-pkg-config-libdir=${PREFIX}/lib/pkgconfig \
     --without-ada \
     --without-cxx \
     --without-cxx-binding \
@@ -31,6 +28,7 @@ cd "ncurses-${NCURSES_VERSION}"
     --without-manpages \
     --without-debug \
     --disable-lib-suffixes \
+    --disable-db-install \
     --with-termlib \
     --with-default-terminfo-dir=/usr/share/terminfo \
     --with-terminfo-dirs=/etc/terminfo:/lib/terminfo:/usr/share/terminfo
