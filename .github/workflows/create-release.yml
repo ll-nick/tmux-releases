@@ -133,6 +133,9 @@ jobs:
           echo "Checking tmux binary"
           file ${{ env.PREFIX }}/bin/tmux
 
+          echo "Listing dynamic libraries linked to tmux"
+          otool -L ${{ env.PREFIX }}/bin/tmux
+
           echo "Creating a new tmux session"
           ${{ env.PREFIX }}/bin/tmux new-session -d -s test
 
