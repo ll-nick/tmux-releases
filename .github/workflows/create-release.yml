@@ -1,16 +1,77 @@
-name: Build tmux and create release
+name: create-release
 
 on:
+  # Create a new release
   push:
     tags:
       - 'v*'
+  # Create nightly releases
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
 
 env:
   PREFIX: /tmp/build
 
 jobs:
+  setup:
+    runs-on: ubuntu-latest
+    outputs:
+      build_type: ${{ steps.set_type.outputs.build_type }}
+    steps:
+      - name: Determine build type
+        id: set_type
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "build_type=release" >> $GITHUB_OUTPUT
+          else
+            echo "build_type=nightly" >> $GITHUB_OUTPUT
+          fi
+
+
+  check-changes:
+    runs-on: ubuntu-latest
+    needs: setup
+    outputs:
+      build_needed: ${{ steps.check.outputs.build_needed }}
+      tmux_sha: ${{ steps.check.outputs.tmux_sha }}
+    if: ${{ needs.setup.outputs.build_type == 'nightly' }}
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    steps:
+      - name: Fetch latest tmux master
+        id: check
+        run: |
+          git clone --depth 1 https://github.com/tmux/tmux.git
+          cd tmux
+          HEAD_SHA=$(git rev-parse --short=8 HEAD)
+          echo "tmux_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Determine if build is needed
+        env:
+          HEAD_SHA: ${{ steps.check.outputs.tmux_sha }}
+        run: |
+          # Get last nightly release SHA (if it exists)
+          LAST_SHA=$(gh release view nightly --json body -q '.body' 2>/dev/null | grep -oE 'SHA: [0-9a-f]+' | cut -d' ' -f2 || echo "")
+          if [ "$HEAD_SHA" = "$LAST_SHA" ]; then
+            echo "No changes since last nightly, skipping build."
+            echo "build_needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "New commit detected, building..."
+            echo "build_needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+
   build-linux:
     name: Build tmux (linux-${{ matrix.arch }})
+    needs: [setup, check-changes]
+    if: ${{ needs.setup.outputs.build_type == 'release' || needs.check-changes.outputs.build_needed == 'true' }}
+    outputs:
+      archive_name: ${{ steps.archive_name.outputs.archive_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -28,8 +89,10 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y \
+              automake \
               bison \
               build-essential \
+              git \
               tar \
               pkg-config \
               wget
@@ -41,10 +104,20 @@ jobs:
         run: |
           echo "Loading versions from versions.env"
           source versions.env
-          echo "TMUX_VERSION=$TMUX_VERSION" >> "$GITHUB_ENV"
           echo "MUSL_VERSION=$MUSL_VERSION" >> "$GITHUB_ENV"
           echo "LIBEVENT_VERSION=$LIBEVENT_VERSION" >> "$GITHUB_ENV"
           echo "NCURSES_VERSION=$NCURSES_VERSION" >> "$GITHUB_ENV"
+
+      - if: ${{ needs.setup.outputs.build_type == 'release' }}
+        name: Set TMUX_VERSION for release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "TMUX_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Set TMUX_VERSION for nightly
+        if: ${{ needs.setup.outputs.build_type == 'nightly' }}
+        run: |
+          echo "TMUX_VERSION=nightly" >> "$GITHUB_ENV"
 
       - name: Build musl
         run: |
@@ -74,20 +147,32 @@ jobs:
           echo "Killing test tmux session"
           ${{ env.PREFIX }}/bin/tmux kill-session -t test
 
+      - name: Determine archive name
+        id: archive_name
+        run: |
+          if [ "${{ needs.setup.outputs.build_type }}" = "nightly" ]; then
+            echo "archive_name=tmux-${{ needs.check-changes.outputs.tmux_sha }}-linux-${{ matrix.arch }}-musl.tar.gz" >> "$GITHUB_OUTPUT"
+          else
+            echo "archive_name=tmux-v${{ github.ref_name }}-linux-${{ matrix.arch }}-musl.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Archive tmux binary
         run: |
-          ARCHIVE_NAME=tmux-v${{ env.TMUX_VERSION }}-linux-${{ matrix.arch }}-musl.tar.gz
-          tar -czf "${ARCHIVE_NAME}" -C ${{ env.PREFIX }}/bin tmux
-          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
+          tar -czf "${{ steps.archive_name.outputs.archive_name }}" -C ${{ env.PREFIX }}/bin tmux
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARCHIVE_NAME }}
-          path: ${{ env.ARCHIVE_NAME }}
+          name: ${{ steps.archive_name.outputs.archive_name }}
+          path: ${{ steps.archive_name.outputs.archive_name }}
+
 
   build-macos:
     name: Build tmux (macos-${{ matrix.arch }})
+    needs: [setup, check-changes]
+    if: ${{ needs.setup.outputs.build_type == 'release' || needs.check-changes.outputs.build_needed == 'true' }}
+    outputs:
+      archive_name: ${{ steps.archive_name.outputs.archive_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -98,10 +183,17 @@ jobs:
           - arch: arm64
             runs_on: macos-15
 
-
     runs-on: ${{ matrix.runs_on }}
 
     steps:
+      - name: Install build dependencies
+        run: |
+          brew update
+          brew install \
+              automake \
+              bison \
+              git
+
       - name: Checkout repo
         uses: actions/checkout@v4
 
@@ -109,10 +201,21 @@ jobs:
         run: |
           echo "Loading versions from versions.env"
           source versions.env
-          echo "TMUX_VERSION=$TMUX_VERSION" >> "$GITHUB_ENV"
+          echo "MUSL_VERSION=$MUSL_VERSION" >> "$GITHUB_ENV"
           echo "LIBEVENT_VERSION=$LIBEVENT_VERSION" >> "$GITHUB_ENV"
           echo "NCURSES_VERSION=$NCURSES_VERSION" >> "$GITHUB_ENV"
           echo "UTF8PROC_VERSION=$UTF8PROC_VERSION" >> "$GITHUB_ENV"
+
+      - if: ${{ needs.setup.outputs.build_type == 'release' }}
+        name: Set TMUX_VERSION for release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "TMUX_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Set TMUX_VERSION for nightly
+        if: ${{ needs.setup.outputs.build_type == 'nightly' }}
+        run: |
+          echo "TMUX_VERSION=nightly" >> "$GITHUB_ENV"
 
       - name: Build libevent
         run: ./scripts/build_libevent.sh
@@ -143,23 +246,44 @@ jobs:
           echo "Killing test tmux session"
           ${{ env.PREFIX }}/bin/tmux kill-session -t test
 
+      - name: Determine archive name
+        id: archive_name
+        run: |
+          if [ "${{ needs.setup.outputs.build_type }}" = "nightly" ]; then
+            echo "archive_name=tmux-${{ needs.check-changes.outputs.tmux_sha }}-macos-${{ matrix.arch }}.tar.gz" >> "$GITHUB_OUTPUT"
+          else
+            echo "archive_name=tmux-v${{ github.ref_name }}-macos-${{ matrix.arch }}.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Archive tmux binary
         run: |
-          ARCHIVE_NAME=tmux-v${{ env.TMUX_VERSION }}-macos-${{ matrix.arch }}.tar.gz
-          tar -czf "${ARCHIVE_NAME}" -C ${{ env.PREFIX }}/bin tmux
-          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
+          tar -czf "${{ steps.archive_name.outputs.archive_name }}" -C ${{ env.PREFIX }}/bin tmux
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARCHIVE_NAME }}
-          path: ${{ env.ARCHIVE_NAME }}
+          name: ${{ steps.archive_name.outputs.archive_name }}
+          path: ${{ steps.archive_name.outputs.archive_name }}
+
 
   collect-licenses:
     runs-on: ubuntu-latest
+    needs: [setup, check-changes]
+    if: ${{ needs.setup.outputs.build_type == 'release' || needs.check-changes.outputs.build_needed == 'true' }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
+
+      - if: ${{ needs.setup.outputs.build_type == 'release' }}
+        name: Set TMUX_VERSION for release
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          echo "TMUX_VERSION=$VERSION" >> "$GITHUB_ENV"
+
+      - name: Set TMUX_VERSION for nightly
+        if: ${{ needs.setup.outputs.build_type == 'nightly' }}
+        run: |
+          echo "TMUX_VERSION=nightly" >> "$GITHUB_ENV"
 
       - name: Collect licenses
         run: |
@@ -171,17 +295,41 @@ jobs:
           name: LICENSES.tar.gz
           path: ${{ env.PREFIX }}/LICENSES.tar.gz
 
+
   create-release:
-    needs: [build-linux, build-macos, collect-licenses]
+    needs: [setup, check-changes, build-linux, build-macos, collect-licenses]
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     steps:
+      - name: Clone Repo
+        uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
           path: dist
 
-      - uses: ncipollo/release-action@v1
-        with:
-          artifacts: "dist/*"
+      - name: Create release
+        env:
+          BUILD_TYPE: ${{ needs.setup.outputs.build_type }}
+          TMUX_SHA: ${{ needs.check-changes.outputs.tmux_sha }}
+        run: |
+          if [ "$BUILD_TYPE" = "nightly" ]; then
+            NOTES="Nightly static builds of tmux (SHA: $TMUX_SHA) for Linux (musl) and macOS."
+            gh release delete nightly --yes || true
+            gh release create nightly \
+              --prerelease \
+              --title "tmux nightly (SHA: $TMUX_SHA)" \
+              --notes "$NOTES" \
+              dist/*
+          else
+            NOTES="Static builds of tmux version ${GITHUB_REF_NAME#v} for Linux (musl) and macOS."
+            gh release create $GITHUB_REF_NAME \
+              --title "tmux ${GITHUB_REF_NAME}" \
+              --notes "$NOTES" \
+              dist/*
+          fi
+
