@@ -74,18 +74,17 @@ jobs:
           echo "Killing test tmux session"
           ${{ env.PREFIX }}/bin/tmux kill-session -t test
 
-      - name: Rename tmux binary
+      - name: Archive tmux binary
         run: |
-          BINARY_NAME=tmux-v${{ env.TMUX_VERSION }}-linux-${{ matrix.arch }}-musl
-          echo "BINARY_NAME=$BINARY_NAME" >> "$GITHUB_ENV"
-          cp ${{ env.PREFIX }}/bin/tmux ${BINARY_NAME}
+          ARCHIVE_NAME=tmux-v${{ env.TMUX_VERSION }}-linux-${{ matrix.arch }}-musl.tar.gz
+          tar -czf "${ARCHIVE_NAME}" -C ${{ env.PREFIX }}/bin tmux
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
 
-
-      - name: Upload artifact
+      - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BINARY_NAME }}
-          path: ${{ env.BINARY_NAME }}
+          name: ${{ env.ARCHIVE_NAME }}
+          path: ${{ env.ARCHIVE_NAME }}
 
   build-macos:
     name: Build tmux (macos-${{ matrix.arch }})
@@ -144,17 +143,17 @@ jobs:
           echo "Killing test tmux session"
           ${{ env.PREFIX }}/bin/tmux kill-session -t test
 
-      - name: Rename tmux binary
+      - name: Archive tmux binary
         run: |
-          BINARY_NAME=tmux-v${{ env.TMUX_VERSION }}-macos-${{ matrix.arch }}
-          echo "BINARY_NAME=$BINARY_NAME" >> "$GITHUB_ENV"
-          cp ${{ env.PREFIX }}/bin/tmux ${BINARY_NAME}
+          ARCHIVE_NAME=tmux-v${{ env.TMUX_VERSION }}-macos-${{ matrix.arch }}.tar.gz
+          tar -czf "${ARCHIVE_NAME}" -C ${{ env.PREFIX }}/bin tmux
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
 
-      - name: Upload artifact
+      - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.BINARY_NAME }}
-          path: ${{ env.BINARY_NAME }}
+          name: ${{ env.ARCHIVE_NAME }}
+          path: ${{ env.ARCHIVE_NAME }}
 
   create-release:
     needs: [build-linux, build-macos]
