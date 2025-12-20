@@ -1,9 +1,14 @@
 name: Build tmux and create release
 
 on:
+  # Create a new release
   push:
     tags:
       - 'v*'
+  # Create nightly releases
+  schedule:
+    - cron: '0 5 * * *'
+  workflow_dispatch:
 
 env:
   PREFIX: /tmp/build
