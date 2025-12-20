@@ -71,6 +71,8 @@ jobs:
     name: Build tmux (linux-${{ matrix.arch }})
     needs: [setup, check-changes]
     if: ${{ needs.setup.outputs.build_type == 'release' || needs.check-changes.outputs.build_needed == 'true' }}
+    outputs:
+      archive_name: ${{ steps.archive_name.outputs.archive_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -127,22 +129,31 @@ jobs:
           echo "Killing test tmux session"
           ${{ env.PREFIX }}/bin/tmux kill-session -t test
 
+      - name: Determine archive name
+        id: archive_name
+        run: |
+          if [ "{{ needs.setup.outputs.build_type }}" = "nightly" ]; then
+            echo "archive_name=tmux-${{ needs.check-changes.outputs.tmux_sha }}-linux-${{ matrix.arch }}-musl.tar.gz" >> "$GITHUB_OUTPUT"
+          else
+            echo "archive_name=tmux-v${{ github.ref_name }}-linux-${{ matrix.arch }}-musl.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Archive tmux binary
         run: |
-          ARCHIVE_NAME=tmux-v${{ env.TMUX_VERSION }}-linux-${{ matrix.arch }}-musl.tar.gz
-          tar -czf "${ARCHIVE_NAME}" -C ${{ env.PREFIX }}/bin tmux
-          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
+          tar -czf "${{ steps.archive_name.outputs.archive_name }}" -C ${{ env.PREFIX }}/bin tmux
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARCHIVE_NAME }}
-          path: ${{ env.ARCHIVE_NAME }}
+          name: ${{ steps.archive_name.outputs.archive_name }}
+          path: ${{ steps.archive_name.outputs.archive_name }}
 
   build-macos:
     name: Build tmux (macos-${{ matrix.arch }})
     needs: [setup, check-changes]
     if: ${{ needs.setup.outputs.build_type == 'release' || needs.check-changes.outputs.build_needed == 'true' }}
+    outputs:
+      archive_name: ${{ steps.archive_name.outputs.archive_name }}
     strategy:
       fail-fast: false
       matrix:
@@ -199,17 +210,24 @@ jobs:
           echo "Killing test tmux session"
           ${{ env.PREFIX }}/bin/tmux kill-session -t test
 
+      - name: Determine archive name
+        id: archive_name
+        run: |
+          if [ "{{ needs.setup.outputs.build_type }}" = "nightly" ]; then
+            echo "archive_name=tmux-${{ needs.check-changes.outputs.tmux_sha }}-macos-${{ matrix.arch }}.tar.gz" >> "$GITHUB_OUTPUT"
+          else
+            echo "archive_name=tmux-v${{ github.ref_name }}-macos-${{ matrix.arch }}.tar.gz" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Archive tmux binary
         run: |
-          ARCHIVE_NAME=tmux-v${{ env.TMUX_VERSION }}-macos-${{ matrix.arch }}.tar.gz
-          tar -czf "${ARCHIVE_NAME}" -C ${{ env.PREFIX }}/bin tmux
-          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
+          tar -czf "${{ steps.archive_name.outputs.archive_name }}" -C ${{ env.PREFIX }}/bin tmux
 
       - name: Upload binary
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ env.ARCHIVE_NAME }}
-          path: ${{ env.ARCHIVE_NAME }}
+          name: ${{ steps.archive_name.outputs.archive_name }}
+          path: ${{ steps.archive_name.outputs.archive_name }}
 
   collect-licenses:
     runs-on: ubuntu-latest
