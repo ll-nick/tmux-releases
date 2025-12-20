@@ -13,9 +13,16 @@ fi
 
 mkdir -p "$PREFIX/src"
 cd "$PREFIX/src"
-wget "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz"
-tar xzf "tmux-${TMUX_VERSION}.tar.gz"
-cd "tmux-${TMUX_VERSION}"
+
+if [[ "${TMUX_VERSION}" == "nightly" ]]; then
+    git clone https://github.com/tmux/tmux.git
+    cd tmux
+    sh autogen.sh
+else
+    wget "https://github.com/tmux/tmux/releases/download/${TMUX_VERSION}/tmux-${TMUX_VERSION}.tar.gz"
+    tar xzf "tmux-${TMUX_VERSION}.tar.gz"
+    cd "tmux-${TMUX_VERSION}"
+fi
 
 IS_MACOS=false
 if [[ "$(uname)" == "Darwin" ]]; then
