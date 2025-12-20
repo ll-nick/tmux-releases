@@ -157,7 +157,7 @@ jobs:
           if [ "${{ needs.setup.outputs.build_type }}" = "nightly" ]; then
             echo "archive_name=tmux-${{ needs.check-changes.outputs.tmux_sha }}-linux-${{ matrix.arch }}-musl.tar.gz" >> "$GITHUB_OUTPUT"
           else
-            echo "archive_name=tmux-v${{ github.ref_name }}-linux-${{ matrix.arch }}-musl.tar.gz" >> "$GITHUB_OUTPUT"
+            echo "archive_name=tmux-${{ github.ref_name }}-linux-${{ matrix.arch }}-musl.tar.gz" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Archive tmux binary
@@ -256,7 +256,7 @@ jobs:
           if [ "${{ needs.setup.outputs.build_type }}" = "nightly" ]; then
             echo "archive_name=tmux-${{ needs.check-changes.outputs.tmux_sha }}-macos-${{ matrix.arch }}.tar.gz" >> "$GITHUB_OUTPUT"
           else
-            echo "archive_name=tmux-v${{ github.ref_name }}-macos-${{ matrix.arch }}.tar.gz" >> "$GITHUB_OUTPUT"
+            echo "archive_name=tmux-${{ github.ref_name }}-macos-${{ matrix.arch }}.tar.gz" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Archive tmux binary
