@@ -2,8 +2,8 @@ name: Build tmux and create release
 
 on:
   push:
-    tags:
-      - 'v*'
+    # tags:
+    #   - 'v*'
 
 env:
   PREFIX: /tmp/build
@@ -169,3 +169,4 @@ jobs:
       - uses: ncipollo/release-action@v1
         with:
           artifacts: "dist/*"
+          draft: true
