@@ -55,10 +55,6 @@ jobs:
           HEAD_SHA=$(git rev-parse --short=8 HEAD)
           echo "upstream_head_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout repo
-        if: ${{ steps.set_type.outputs.is_preview == 'true' }}
-        uses: actions/checkout@v4
-
       - name: Determine if build is needed
         if: ${{ steps.set_type.outputs.is_preview == 'true' }}
         id: check_changes
@@ -68,6 +64,7 @@ jobs:
           LAST_SHA=""
 
           gh release download preview \
+            --repo ${GITHUB_REPOSITORY} \
             --pattern tmux-upstream-sha.txt \
             --output last-sha.txt \
             >/dev/null 2>&1 || true
@@ -220,9 +217,6 @@ jobs:
       IS_PREVIEW: ${{ needs.setup.outputs.is_preview }}
       TMUX_SHA: ${{ needs.setup.outputs.upstream_head_sha }}
     steps:
-      - name: Clone Repo
-        uses: actions/checkout@v4
-
       - uses: actions/download-artifact@v4
         with:
           merge-multiple: true
@@ -245,10 +239,11 @@ jobs:
             PRERELEASE_FLAG=""
           fi
 
-          gh release delete "$RELEASE_TAG" --yes || true
+          gh release delete "$RELEASE_TAG" --repo ${GITHUB_REPOSITORY} --yes || true
 
           gh release create "$RELEASE_TAG" \
             $PRERELEASE_FLAG \
+            --repo ${GITHUB_REPOSITORY} \
             --title "$TITLE" \
             --notes "$NOTES" \
             dist/*
