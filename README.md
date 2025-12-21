@@ -17,8 +17,8 @@ Supported platforms:
 
 Two types of builds are provided:
 
-- **Release builds:** Stable versions of tmux (e.g., v3.6a).  
-- **Nightly builds:** Built from the latest `master` commit; may include experimental features or unstable changes.
+- **Release builds:** Stable versions of tmux (e.g. v3.6a).  
+- **Preview builds:** Built from the latest `master` commit; may include experimental features or unstable changes.
 
 ## Installation
 
@@ -42,7 +42,8 @@ Two types of builds are provided:
 
 Adjust dependency versions in `versions.env` if needed.  
 
-Set the tmux version via build argument or environment variable:
+Set the tmux version (without the `v` prefix) via build argument or environment variable.  
+To build from the latest `master` commit, set `TMUX_VERSION=preview`.
 
 ```bash
 docker compose build --build-arg TMUX_VERSION=3.5a
