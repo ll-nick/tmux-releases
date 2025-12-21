@@ -65,8 +65,15 @@ jobs:
         env:
           HEAD_SHA: ${{ steps.tmux_head.outputs.upstream_head_sha }}
         run: |
-          # Get last preview release SHA (if it exists)
-          LAST_SHA=$(gh release view preview --json body -q '.body' 2>/dev/null | grep -oE 'SHA: [0-9a-f]+' | cut -d' ' -f2 || echo "")
+          LAST_SHA=""
+
+          gh release download preview \
+            --pattern tmux-upstream-sha.txt \
+            --output last-sha.txt \
+            >/dev/null 2>&1 || true
+
+          [ -f last-sha.txt ] && LAST_SHA="$(< last-sha.txt)"
+
           if [ "$HEAD_SHA" = "$LAST_SHA" ]; then
             echo "No changes since last preview build, skipping."
             echo "upstream_changed=false" >> "$GITHUB_OUTPUT"
@@ -221,14 +228,19 @@ jobs:
           merge-multiple: true
           path: dist
 
+      - name: Write upstream SHA artifact
+        if: ${{ needs.setup.outputs.is_preview == 'true' }}
+        run: |
+          echo "${TMUX_SHA}" > dist/tmux-upstream-sha.txt
+
       - name: Create release
         run: |
           if [ "$IS_PREVIEW" = "true" ]; then
-            TITLE="tmux preview build (SHA: $TMUX_SHA)"
-            NOTES="Preview builds of tmux (SHA: $TMUX_SHA) for Linux (musl) and macOS."
+            TITLE="tmux preview build (${TMUX_SHA})"
+            NOTES="Static builds of the latest tmux from upstream master for Linux (musl) and macOS."
             PRERELEASE_FLAG="--prerelease"
           else
-            TITLE="tmux version $TMUX_VERSION"
+            TITLE="tmux v$TMUX_VERSION"
             NOTES="Static builds of tmux version $TMUX_VERSION for Linux (musl) and macOS."
             PRERELEASE_FLAG=""
           fi
