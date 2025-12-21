@@ -1,11 +1,11 @@
 name: create-release
 
 on:
-  # Create a new release
+  # Create a stable release
   push:
     tags:
       - 'v*'
-  # Create nightly releases
+  # Create a preview release
   schedule:
     - cron: '0 5 * * *'
   workflow_dispatch:
@@ -17,7 +17,7 @@ jobs:
   setup:
     runs-on: ubuntu-latest
     outputs:
-      build_type: ${{ steps.set_type.outputs.build_type }}
+      is_preview: ${{ steps.set_type.outputs.is_preview }}
       nightly_requires_rebuild: ${{ steps.tmux_head.outputs.nightly_requires_rebuild }}
       tmux_sha: ${{ steps.tmux_head.outputs.tmux_sha }}
     env:
@@ -27,14 +27,14 @@ jobs:
         id: set_type
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
-            echo "build_type=release" >> $GITHUB_OUTPUT
+            echo "is_preview=false" >> $GITHUB_OUTPUT
           else
-            echo "build_type=nightly" >> $GITHUB_OUTPUT
+            echo "is_preview=true" >> $GITHUB_OUTPUT
           fi
 
       - name: Fetch latest tmux master
         id: tmux_head
-        if: ${{ steps.set_type.outputs.build_type == 'nightly' }}
+        if: ${{ steps.set_type.outputs.is_preview == 'true' }}
         run: |
           git clone --depth 1 https://github.com/tmux/tmux.git
           cd tmux
@@ -42,18 +42,18 @@ jobs:
           echo "tmux_sha=$HEAD_SHA" >> "$GITHUB_OUTPUT"
 
       - name: Checkout repo
-        if: ${{ steps.set_type.outputs.build_type == 'nightly' }}
+        if: ${{ steps.set_type.outputs.is_preview == 'true' }}
         uses: actions/checkout@v4
 
       - name: Determine if build is needed
-        if: ${{ steps.set_type.outputs.build_type == 'nightly' }}
+        if: ${{ steps.set_type.outputs.is_preview == 'true' }}
         env:
           HEAD_SHA: ${{ steps.tmux_head.outputs.tmux_sha }}
         run: |
-          # Get last nightly release SHA (if it exists)
-          LAST_SHA=$(gh release view nightly --json body -q '.body' 2>/dev/null | grep -oE 'SHA: [0-9a-f]+' | cut -d' ' -f2 || echo "")
+          # Get last preview release SHA (if it exists)
+          LAST_SHA=$(gh release view preview --json body -q '.body' 2>/dev/null | grep -oE 'SHA: [0-9a-f]+' | cut -d' ' -f2 || echo "")
           if [ "$HEAD_SHA" = "$LAST_SHA" ]; then
-            echo "No changes since last nightly, skipping build."
+            echo "No changes since last preview build, skipping."
             echo "nightly_requires_rebuild=false" >> "$GITHUB_OUTPUT"
           else
             echo "New commit detected, building..."
@@ -64,7 +64,7 @@ jobs:
   build:
     name: Build tmux (${{ matrix.os }}-${{ matrix.arch }})
     needs: setup
-    if: ${{ needs.setup.outputs.build_type == 'release' ||
+    if: ${{ needs.setup.outputs.is_preview == 'false' ||
             needs.setup.outputs.nightly_requires_rebuild == 'true' }}
     strategy:
       fail-fast: false
@@ -121,8 +121,8 @@ jobs:
           echo "NCURSES_VERSION=$NCURSES_VERSION" >> "$GITHUB_ENV"
           echo "UTF8PROC_VERSION=$UTF8PROC_VERSION" >> "$GITHUB_ENV"
 
-          if [ "${{ needs.setup.outputs.build_type }}" = "nightly" ]; then
-            echo "TMUX_VERSION=nightly" >> "$GITHUB_ENV"
+          if [ "${{ needs.setup.outputs.is_preview }}" = "true" ]; then
+            echo "TMUX_VERSION=preview" >> "$GITHUB_ENV"
           else
             VERSION="${GITHUB_REF_NAME#v}"
             echo "TMUX_VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -154,7 +154,7 @@ jobs:
       - name: Determine archive name
         id: archive_name
         run: |
-         if [ "${{ needs.setup.outputs.build_type }}" = "nightly" ]; then
+         if [ "${{ needs.setup.outputs.is_preview }}" = "true" ]; then
             VERSION="${{ needs.setup.outputs.tmux_sha }}"
           else
             VERSION="${GITHUB_REF_NAME}"
@@ -175,15 +175,15 @@ jobs:
   collect-licenses:
     runs-on: ubuntu-latest
     needs: setup
-    if: ${{ needs.setup.outputs.build_type == 'release' || needs.setup.outputs.nightly_requires_rebuild == 'true' }}
+    if: ${{ needs.setup.outputs.is_preview == 'false' || needs.setup.outputs.nightly_requires_rebuild == 'true' }}
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
 
       - name: Set TMUX_VERSION
         run: |
-          if [ "${{ needs.setup.outputs.build_type }}" = "nightly" ]; then
-            echo "TMUX_VERSION=nightly" >> "$GITHUB_ENV"
+          if [ "${{ needs.setup.outputs.is_preview }}" = "true" ]; then
+            echo "TMUX_VERSION=preview" >> "$GITHUB_ENV"
           else
             VERSION="${GITHUB_REF_NAME#v}"
             echo "TMUX_VERSION=$VERSION" >> "$GITHUB_ENV"
@@ -218,15 +218,15 @@ jobs:
 
       - name: Create release
         env:
-          BUILD_TYPE: ${{ needs.setup.outputs.build_type }}
+          IS_PREVIEW: ${{ needs.setup.outputs.is_preview }}
           TMUX_SHA: ${{ needs.setup.outputs.tmux_sha }}
         run: |
-          if [ "$BUILD_TYPE" = "nightly" ]; then
-            NOTES="Nightly static builds of tmux (SHA: $TMUX_SHA) for Linux (musl) and macOS."
-            gh release delete nightly --yes || true
-            gh release create nightly \
+          if [ "$IS_PREVIEW" = "true" ]; then
+            NOTES="Preview builds of tmux (SHA: $TMUX_SHA) for Linux (musl) and macOS."
+            gh release delete preview --yes || true
+            gh release create preview \
               --prerelease \
-              --title "tmux nightly (SHA: $TMUX_SHA)" \
+              --title "tmux preview (SHA: $TMUX_SHA)" \
               --notes "$NOTES" \
               dist/*
           else
