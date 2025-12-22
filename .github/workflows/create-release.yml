@@ -174,7 +174,7 @@ jobs:
          if [ "${{ needs.setup.outputs.is_preview }}" = "true" ]; then
             VERSION="${{ needs.setup.outputs.upstream_head_sha }}"
           else
-            VERSION="${GITHUB_REF_NAME}"
+            VERSION="${GITHUB_REF_NAME#v}"
           fi
           echo "archive_name=tmux-${VERSION}-${{ matrix.os }}-${{ matrix.arch }}.tar.gz" >> "$GITHUB_OUTPUT"
 
