@@ -1,10 +1,10 @@
-# tmux releases
+# tmux builds
 
 This repository provides ready to use binaries of the [tmux](https://github.com/tmux/tmux/) terminal multiplexer.
 
 ## Available Releases
 
-All releases are available in the [Releases](https://github.com/ll-nick/tmux-releases/releases) section.  
+All releases are available in the [releases](https://github.com/tmux/tmux-builds/releases) section.  
 
 Supported platforms:
 - Linux x86_64
@@ -22,7 +22,7 @@ Two types of builds are provided:
 
 ## Installation
 
-1. Go to the [Releases](https://github.com/ll-nick/tmux-releases/releases) page.  
+1. Go to the [releases](https://github.com/tmux/tmux-builds/releases) page.  
 2. Download the archive for your platform.  
 3. Extract the archive with:
  
@@ -54,15 +54,15 @@ TMUX_VERSION=3.5a docker compose build
 Extract the binary:
 
 ```bash
-docker compose create tmux-release-builder
-docker cp tmux-release-builder:/artifacts ./artifacts
-docker compose rm tmux-release-builder
+docker compose create tmux-builder
+docker cp tmux-builder:/artifacts ./artifacts
+docker compose rm tmux-builder
 ```
 
 ### Via Build Scripts
 
 You can alternatively build tmux directly on your machine using the provided [build scripts](./scripts/).  
-See the build stage for you platform in the [GitHub Actions workflow](.github/workflows/create-release.yml) reference on how to use these scripts.
+See the build stage in the [GitHub Actions workflow](.github/workflows/create-release.yml) reference on how to use these scripts.
 
 ## Acknowledgments
 
