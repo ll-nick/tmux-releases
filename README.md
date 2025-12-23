@@ -1,3 +1,10 @@
+> ⚠️ **Repository moved**
+>
+> This repository has been moved to the **tmux organization** and is no longer maintained here.
+>
+> 👉 **New location:** https://github.com/tmux/tmux-builds
+>
+
 # tmux builds
 
 This repository provides ready to use binaries of the [tmux](https://github.com/tmux/tmux/) terminal multiplexer.
